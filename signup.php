@@ -2,7 +2,7 @@
 
 require_once "db.php";
 
-if ($_SERVER["REQUEST_METHOD"] === "POST") {   
+if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $name = trim($_POST["name"] ?? "");
     $email = trim($_POST["email"] ?? "");
@@ -13,7 +13,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         die("All fields are required.");
     }
 
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {  
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         die("Please enter a valid email address.");
     }
 
@@ -25,10 +25,32 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         die("Passwords do not match.");
     }
 
+    // Check whether the email already exists
+    $checkStmt = $conn->prepare(
+        "SELECT id FROM users WHERE email = ?"
+    );
+
+    $checkStmt->bind_param("s", $email);
+    $checkStmt->execute();
+
+    $result = $checkStmt->get_result();
+
+    if ($result->num_rows > 0) {
+        $checkStmt->close();
+        $conn->close();
+
+        die("Account already exists. Please use a different email.");
+    }
+
+    $checkStmt->close();
+
+    // Hash password
     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
+    // Create account
     $stmt = $conn->prepare(
-        "INSERT INTO users (full_name, email, password) VALUES (?, ?, ?)"
+        "INSERT INTO users (full_name, email, password)
+         VALUES (?, ?, ?)"
     );
 
     $stmt->bind_param("sss", $name, $email, $hashedPassword);
@@ -36,11 +58,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     if ($stmt->execute()) {
         echo "Account created successfully!";
     } else {
-        if ($conn->errno === 1062) {
-            echo "An account with this email already exists.";
-        } else {
-            echo "Signup failed.";
-        }
+        echo "Unable to create account. Please try again.";
     }
 
     $stmt->close();
