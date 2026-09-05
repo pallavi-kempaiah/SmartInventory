@@ -14,12 +14,34 @@ if (!isset($_SESSION["user_id"]) || $_SESSION["role"] !== "admin") {
     exit;
 }
 
-$stmt = $conn->prepare(
-    "SELECT id, full_name, email, role, created_at
-     FROM users
-     WHERE role != 'admin'
-     ORDER BY id DESC"
-);
+$search = trim($_GET["search"] ?? "");
+
+if ($search !== "") {
+
+    $searchTerm = "%" . $search . "%";
+
+    $stmt = $conn->prepare(
+        "SELECT id, full_name, email, role, created_at
+         FROM users
+         WHERE role != 'admin'
+         AND (full_name LIKE ? OR email LIKE ?)
+         ORDER BY id DESC"
+    );
+
+    $stmt->bind_param("ss", $searchTerm, $searchTerm);
+
+} else {
+
+    $stmt = $conn->prepare(
+        "SELECT id, full_name, email, role, created_at
+         FROM users
+         WHERE role != 'admin'
+         ORDER BY id DESC"
+    );
+}
+
+$stmt->execute();
+$result = $stmt->get_result();
 
 $stmt->execute();
 
@@ -173,6 +195,63 @@ $result = $stmt->get_result();
                 padding: 16px;
             }
         }
+        .user-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.user-search input {
+    width: 280px;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    outline: none;
+}
+
+.user-search input:focus {
+    border-color: #6c2bd9;
+}
+
+.user-search button {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    background: #6c2bd9;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.user-search button:hover {
+    background: #5720b7;
+}
+
+.user-search a {
+    color: #6c2bd9;
+    text-decoration: none;
+    font-weight: bold;
+    padding: 10px 5px;
+}
+
+@media (max-width: 700px) {
+
+    .users-summary {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .user-search {
+        width: 100%;
+    }
+
+    .user-search input {
+        width: 100%;
+    }
+
+}
     </style>
 </head>
 
@@ -184,7 +263,7 @@ $result = $stmt->get_result();
         Smart Inventory
     </div>
 
-    <nav>
+    <nav class="nav-links">
         <a href="admin-dashboard.php">Dashboard</a>
         <a href="admin-users.php">Users</a>
         <a href="admin-inventory.php">Inventory</a>
@@ -206,14 +285,37 @@ $result = $stmt->get_result();
 
     <div class="users-summary">
 
-        <div class="member-count">
-            <strong>
-                <?php echo $result->num_rows; ?>
-            </strong>
-            Registered Members
-        </div>
-
+    <div class="member-count">
+        <strong>
+            <?php echo $result->num_rows; ?>
+        </strong>
+        <?php echo ($search !== "") ? "Matching Members" : "Registered Members"; ?>
     </div>
+
+    <form method="get" action="admin-users.php" class="user-search">
+
+        <input
+            type="text"
+            name="search"
+            placeholder="Search by name or email..."
+            value="<?php echo htmlspecialchars($search); ?>"
+        >
+
+        <button type="submit">
+            Search
+        </button>
+
+        <?php if ($search !== ""): ?>
+
+            <a href="admin-users.php">
+                Clear
+            </a>
+
+        <?php endif; ?>
+
+    </form>
+
+</div>
 
 
     <div class="table-container">

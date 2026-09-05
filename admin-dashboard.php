@@ -7,6 +7,8 @@ header("Cache-Control: post-check=0, pre-check=0", false);
 header("Pragma: no-cache");
 header("Expires: 0");
 
+require_once "db.php";
+
 if (!isset($_SESSION["user_id"])) {
     header("Location: admin-login.html");
     exit;
@@ -17,6 +19,15 @@ if ($_SESSION["role"] !== "admin") {
 }
 
 $fullName = $_SESSION["full_name"];
+
+/* Count registered users excluding admin */
+$userCountResult = $conn->query(
+    "SELECT COUNT(*) AS total_users
+     FROM users
+     WHERE role != 'admin'"
+);
+
+$userCount = $userCountResult->fetch_assoc()["total_users"];
 
 ?>
 
@@ -48,13 +59,13 @@ $fullName = $_SESSION["full_name"];
 
             <a href="admin-users.php">Users</a>
 
-            <a href="#">Inventory</a>
+            <a href="admin-inventory.php">Inventory</a>
 
             <a href="#">Exchange Requests</a>
 
             <a href="#">Reports</a>
 
-            <a href="admin-login.html">Logout</a>
+            <a href="logout.php">Logout</a>
 
         </div>
 
@@ -86,7 +97,9 @@ $fullName = $_SESSION["full_name"];
 
                 <h3>Total Users</h3>
 
-                <p class="number">0</p>
+                <p class="number">
+                    <?php echo $userCount; ?>
+                </p>
 
                 <span>Registered users</span>
 
@@ -148,7 +161,7 @@ $fullName = $_SESSION["full_name"];
                 </a>
 
 
-                <a href="#" class="action-card">
+                <a href="admin-inventory.php" class="action-card">
 
                     <h3>📦 Inventory Overview</h3>
 
@@ -193,7 +206,8 @@ $fullName = $_SESSION["full_name"];
             window.location.reload();
         }
     });
-</script>
+    </script>
+
 </body>
 
 </html>

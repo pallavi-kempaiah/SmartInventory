@@ -207,3 +207,18 @@ td a:hover {
     color: #6c2bd9;
     font-weight: bold;
 }
+.sell-btn {
+    display: inline-block;
+    padding: 6px 12px;
+    margin-left: 5px;
+    background: #6c2bd9;
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 13px;
+}
+
+.sell-btn:hover {
+    background: #5720b7;
+}

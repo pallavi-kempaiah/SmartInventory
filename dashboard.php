@@ -70,6 +70,7 @@ $deadStock = 0;
             <a href="dashboard.html">Dashboard</a>
             <a href="inventory.php">Products</a>
             <a href="add-product.php">Add Product</a>
+            <a href="sales-history.php">Sales History</a>
             <a href="#">Reports</a>
             <a href="#">Profile</a>
             <a href="logout.php">Logout</a>

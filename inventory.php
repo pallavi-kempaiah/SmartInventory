@@ -336,6 +336,12 @@ $result = $stmt->get_result();
                             >
                                 Delete
                             </button>
+                            <a
+    href="sell-product.php?id=<?php echo $product["id"]; ?>"
+    class="sell-btn"
+>
+    Sell
+</a>
 
                         </form>
 
