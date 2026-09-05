@@ -46,7 +46,7 @@ $fullName = $_SESSION["full_name"];
 
             <a href="admin-dashboard.php">Dashboard</a>
 
-            <a href="#">Users</a>
+            <a href="admin-users.php">Users</a>
 
             <a href="#">Inventory</a>
 
@@ -137,7 +137,7 @@ $fullName = $_SESSION["full_name"];
 
             <div class="action-container">
 
-                <a href="#" class="action-card">
+                <a href="admin-users.php" class="action-card">
 
                     <h3>👥 Manage Users</h3>
 
