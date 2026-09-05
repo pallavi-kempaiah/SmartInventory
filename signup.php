@@ -56,10 +56,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $stmt->bind_param("sss", $name, $email, $hashedPassword);
 
     if ($stmt->execute()) {
-        echo "Account created successfully!";
-    } else {
-        echo "Unable to create account. Please try again.";
-    }
+    header("Location: login.html?signup=success");
+    exit;
+} else {
+    echo "Unable to create account. Please try again.";
+}
 
     $stmt->close();
     $conn->close();

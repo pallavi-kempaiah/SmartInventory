@@ -86,10 +86,12 @@ body {
 
     box-shadow:
         0 3px 10px rgba(0,0,0,0.08);
+        text-decoration: none;
 }
 
 .card h3 {
     margin-bottom: 15px;
+    color: black;
 }
 
 .card .number {
@@ -190,4 +192,15 @@ body {
     .action-container {
         grid-template-columns: 1fr;
     }
+}
+.dashboard-cards .card[href] {
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dashboard-cards .card[href]:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
 }

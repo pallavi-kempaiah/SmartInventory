@@ -162,29 +162,48 @@ td a:hover {
     }
 
 }
-.search-form {
+
+.filter-form {
     display: flex;
     gap: 10px;
+    margin-top: 15px;
     margin-bottom: 20px;
+    flex-wrap: wrap;
 }
 
-.search-form input {
+.filter-form input,
+.filter-form select {
     padding: 10px 12px;
     border: 1px solid #ddd;
     border-radius: 6px;
-    width: 280px;
+    font-size: 14px;
 }
 
-.search-form button {
+.filter-form input {
+    width: 250px;
+}
+
+.filter-form select {
+    min-width: 150px;
+}
+
+.filter-form button {
     padding: 10px 18px;
     border: none;
     border-radius: 6px;
     background: #6c2bd9;
     color: white;
     cursor: pointer;
+    font-weight: bold;
 }
 
-.search-form a {
+.filter-form button:hover {
+    background: #5720b7;
+}
+
+.filter-form a {
     padding: 10px 12px;
     text-decoration: none;
+    color: #6c2bd9;
+    font-weight: bold;
 }
