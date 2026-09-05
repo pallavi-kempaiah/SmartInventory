@@ -39,9 +39,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $_SESSION["email"] = $user["email"];
             $_SESSION["role"] = $user["role"];
 
-            echo "Admin login successful! Welcome, "
-                 . htmlspecialchars($user["full_name"]);
-
+            header("Location: admin-dashboard.php");
+exit;
         } else {
             echo "Invalid email or password.";
         }
