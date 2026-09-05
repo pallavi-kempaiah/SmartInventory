@@ -8,18 +8,32 @@ if (!isset($_SESSION["user_id"])) {
     header("Location: login.html");
     exit;
 }
-
 $userId = $_SESSION["user_id"];
+$search = trim($_GET["search"] ?? "");
 
-$stmt = $conn->prepare(
-    "SELECT id, product_name, category, quantity, price,
-            purchase_date, expiry_date
-     FROM products
-     WHERE user_id = ?
-     ORDER BY id DESC"
-);
+if ($search !== "") {
+    $stmt = $conn->prepare(
+        "SELECT id, product_name, category, quantity, price,
+                purchase_date, expiry_date
+         FROM products
+         WHERE user_id = ?
+         AND product_name LIKE ?
+         ORDER BY id DESC"
+    );
 
-$stmt->bind_param("i", $userId);
+    $searchTerm = "%" . $search . "%";
+    $stmt->bind_param("is", $userId, $searchTerm);
+} else {
+    $stmt = $conn->prepare(
+        "SELECT id, product_name, category, quantity, price,
+                purchase_date, expiry_date
+         FROM products
+         WHERE user_id = ?
+         ORDER BY id DESC"
+    );
+
+    $stmt->bind_param("i", $userId);
+}
 $stmt->execute();
 
 $result = $stmt->get_result();
@@ -73,6 +87,21 @@ $result = $stmt->get_result();
             <div>
 
                 <h1>My Inventory</h1>
+
+<form method="get" action="inventory.php" class="search-form">
+    <input
+        type="text"
+        name="search"
+        placeholder="Search products..."
+        value="<?php echo htmlspecialchars($search); ?>"
+    >
+
+    <button type="submit">Search</button>
+
+    <?php if ($search !== ""): ?>
+        <a href="inventory.php">Clear</a>
+    <?php endif; ?>
+</form>
 
                 <p>
                     Manage your products and stock.
