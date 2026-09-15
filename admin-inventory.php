@@ -222,6 +222,21 @@ $result = $stmt->get_result();
                 width: 100%;
             }
         }
+        nav{
+    display: flex;
+    gap: 22px;
+}
+
+nav a {
+    color: white;
+    text-decoration: none;
+    font-size: 15px;
+}
+
+nav a:hover {
+    text-decoration: underline;
+}
+
     </style>
 </head>
 

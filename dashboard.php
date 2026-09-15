@@ -67,7 +67,7 @@ $deadStock = 0;
         </div>
 
         <div class="nav-links">
-            <a href="dashboard.html">Dashboard</a>
+            <a href="dashboard.php">Dashboard</a>
             <a href="inventory.php">Products</a>
             <a href="add-product.php">Add Product</a>
             <a href="sales-history.php">Sales History</a>
@@ -152,6 +152,16 @@ $deadStock = 0;
                     <h3>📦 View Inventory</h3>
                     <p>View and manage your products.</p>
                 </a>
+
+                <a href="ocr-stock-in.php" class="action-card">
+    <h3>📷 Scan Receipt</h3>
+    <p>Scan a receipt and automatically add products to your inventory.</p>
+</a>
+
+<a href="scan-product.php" class="action-card">
+    <h3>🤖 Scan Product</h3>
+    <p>Use AI to recognize a product from a photo and update your inventory.</p>
+</a>
 
                 <a href="#" class="action-card">
                     <h3>🤖 AI Insights</h3>
