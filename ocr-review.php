@@ -243,26 +243,54 @@ if ($transactionType === "out") {
                         <!-- Category -->
 
                         <td>
+<?php
 
-                            <select
-                                name="products[<?php echo $index; ?>][category]"
-                                required
-                            >
+$predictedCategory = $product["category"] ?? "Other";
 
-                                <option value="">Select</option>
+$allowedCategories = [
+    "Food",
+    "Beverages",
+    "Dairy",
+    "Fruits & Vegetables",
+    "Electronics",
+    "Clothing",
+    "Personal Care",
+    "Household",
+    "Stationery",
+    "Other"
+];
 
-                                <option value="Food">Food</option>
-                                <option value="Beverages">Beverages</option>
-                                <option value="Dairy">Dairy</option>
-                                <option value="Fruits & Vegetables">Fruits & Vegetables</option>
-                                <option value="Electronics">Electronics</option>
-                                <option value="Clothing">Clothing</option>
-                                <option value="Personal Care">Personal Care</option>
-                                <option value="Household">Household</option>
-                                <option value="Stationery">Stationery</option>
-                                <option value="Other">Other</option>
+if (!in_array($predictedCategory, $allowedCategories, true)) {
+    $predictedCategory = "Other";
+}
 
-                            </select>
+?>
+
+<select
+    name="products[<?php echo $index; ?>][category]"
+    required
+>
+
+    <?php foreach ($allowedCategories as $category): ?>
+
+        <option
+            value="<?php echo htmlspecialchars($category); ?>"
+            <?php
+            echo ($predictedCategory === $category)
+                ? "selected"
+                : "";
+            ?>
+        >
+            <?php echo htmlspecialchars($category); ?>
+        </option>
+
+    <?php endforeach; ?>
+
+</select>
+
+<small style="display:block; margin-top:5px; color:#666;">
+    🤖 AI predicted category
+</small>
 
                         </td>
 

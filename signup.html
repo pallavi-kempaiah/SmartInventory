@@ -184,6 +184,50 @@
             onclick="togglePassword('confirmPassword', this)"
         >👁️</button>
     </div>
+    <div class="form-group">
+    <label>Shop Account</label>
+
+    <div style="display: flex; gap: 15px; margin-top: 8px;">
+        <label style="font-weight: normal;">
+            <input
+                type="radio"
+                name="shop_action"
+                value="create"
+                checked
+                onchange="updateShopFields()"
+                style="width: auto;"
+            >
+            Create New Shop
+        </label>
+
+        <label style="font-weight: normal;">
+            <input
+                type="radio"
+                name="shop_action"
+                value="join"
+                onchange="updateShopFields()"
+                style="width: auto;"
+            >
+            Join Existing Shop
+        </label>
+    </div>
+</div>
+
+<div class="form-group">
+    <label for="shopName">Shop Name</label>
+
+    <input
+        type="text"
+        id="shopName"
+        name="shopName"
+        placeholder="Enter your shop name"
+        required
+    >
+
+    <small id="shopHelp" style="color:#64748b; display:block; margin-top:6px;">
+        You will become the owner of this shop.
+    </small>
+</div>
 </div>
 
             <button type="submit" class="signup-btn">
@@ -199,6 +243,28 @@
 
     </div>
 
+    <script>
+function updateShopFields() {
+    const action = document.querySelector(
+        'input[name="shop_action"]:checked'
+    ).value;
+
+    const shopName = document.getElementById("shopName");
+    const shopHelp = document.getElementById("shopHelp");
+
+    if (action === "create") {
+        shopName.placeholder = "Enter your shop name";
+        shopHelp.textContent =
+            "You will become the owner of this shop.";
+    } else {
+        shopName.placeholder = "Enter the existing shop name";
+        shopHelp.textContent =
+            "Your request will be sent to the shop owner for approval.";
+    }
+}
+</script>
+
+<script src="signup.js"></script>
 
     <script src="signup.js"></script>
 </body>

@@ -12,217 +12,272 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     exit;
 }
 
-$userId = $_SESSION["user_id"];
+$userId = (int) $_SESSION["user_id"];
 
+/*
+|--------------------------------------------------------------------------
+| Get the user's current shop
+|--------------------------------------------------------------------------
+*/
+$userStmt = $conn->prepare(
+    "SELECT role, shop_id, account_status
+     FROM users
+     WHERE id = ?
+     LIMIT 1"
+);
+
+$userStmt->bind_param("i", $userId);
+$userStmt->execute();
+
+$userResult = $userStmt->get_result();
+
+if ($userResult->num_rows !== 1) {
+    $userStmt->close();
+    $conn->close();
+    die("User account not found.");
+}
+
+$user = $userResult->fetch_assoc();
+$userStmt->close();
+
+$role = $user["role"];
+$shopId = $user["shop_id"];
+$accountStatus = $user["account_status"];
+
+/*
+|--------------------------------------------------------------------------
+| Only owners and approved employees can add shared inventory
+|--------------------------------------------------------------------------
+*/
+if ($role !== "owner" && $role !== "employee") {
+    $conn->close();
+    die("Only shop owners and approved employees can add products.");
+}
+
+if ($role === "employee" && $accountStatus !== "approved") {
+    $conn->close();
+    die("Your employee account is not approved yet.");
+}
+
+if (empty($shopId)) {
+    $conn->close();
+    die("You are not connected to a shop.");
+}
+
+$shopId = (int) $shopId;
+
+/*
+|--------------------------------------------------------------------------
+| Get product information
+|--------------------------------------------------------------------------
+*/
 $productName = trim($_POST["product_name"] ?? "");
 $category = trim($_POST["category"] ?? "");
 $quantity = $_POST["quantity"] ?? "";
 $price = $_POST["price"] ?? "";
-$purchaseDate = $_POST["purchase_date"] ?? "";
-$expiryDate = $_POST["expiry_date"] ?? "";
+$purchaseDate = !empty($_POST["purchase_date"])
+    ? $_POST["purchase_date"]
+    : null;
 
+$expiryDate = !empty($_POST["expiry_date"])
+    ? $_POST["expiry_date"]
+    : null;
+
+/*
+|--------------------------------------------------------------------------
+| Validation
+|--------------------------------------------------------------------------
+*/
 if ($productName === "" || $quantity === "" || $price === "") {
     die("Product name, quantity and price are required.");
 }
+
+if (!is_numeric($quantity) || !is_numeric($price)) {
+    die("Quantity and price must be valid numbers.");
+}
+
+$quantity = (int) $quantity;
+$price = (float) $price;
 
 if ($quantity < 0 || $price < 0) {
     die("Quantity and price cannot be negative.");
 }
 
-$stmt = $conn->prepare(
-    "INSERT INTO products
-    (user_id, product_name, category, quantity, price, purchase_date, expiry_date)
-    VALUES (?, ?, ?, ?, ?, ?, ?)"
+/*
+|--------------------------------------------------------------------------
+| Insert product into shared shop inventory
+|--------------------------------------------------------------------------
+|
+| user_id = person who added the product
+| shop_id = shop whose inventory the product belongs to
+|
+*/
+/*
+|--------------------------------------------------------------------------
+| Add to existing product or create a new product
+|--------------------------------------------------------------------------
+| Products with the same name inside the same shop share one quantity.
+|--------------------------------------------------------------------------
+*/
+
+$checkStmt = $conn->prepare(
+    "SELECT id
+     FROM products
+     WHERE shop_id = ?
+       AND LOWER(TRIM(product_name)) = LOWER(TRIM(?))
+     LIMIT 1"
 );
 
-$stmt->bind_param(
-    "issidss",
-    $userId,
-    $productName,
-    $category,
+$checkStmt->bind_param("is", $shopId, $productName);
+$checkStmt->execute();
+
+$existingResult = $checkStmt->get_result();
+
+if ($existingResult->num_rows === 1) {
+
+    // Product already exists → increase its quantity
+    $existingProduct = $existingResult->fetch_assoc();
+    $existingProductId = (int) $existingProduct["id"];
+
+    $updateStmt = $conn->prepare(
+        "UPDATE products
+         SET quantity = quantity + ?,
+             user_id = ?,
+             category = ?,
+             price = ?,
+             purchase_date = ?,
+             expiry_date = ?
+         WHERE id = ? AND shop_id = ?"
+    );
+
+    $updateStmt->bind_param(
+    "iisdssii",
     $quantity,
+    $userId,
+    $category,
     $price,
     $purchaseDate,
-    $expiryDate
+    $expiryDate,
+    $existingProductId,
+    $shopId
 );
 
-$success = $stmt->execute();
+    $updateStmt->execute();
+    $updateStmt->close();
 
-$stmt->close();
-$conn->close();
+} else {
+
+    // Product does not exist → create it
+    $insertStmt = $conn->prepare(
+        "INSERT INTO products
+        (
+            user_id,
+            shop_id,
+            product_name,
+            category,
+            quantity,
+            price,
+            purchase_date,
+            expiry_date
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+    );
+
+    $insertStmt->bind_param(
+        "iissidss",
+        $userId,
+        $shopId,
+        $productName,
+        $category,
+        $quantity,
+        $price,
+        $purchaseDate,
+        $expiryDate
+    );
+
+    $insertStmt->execute();
+    $insertStmt->close();
+}
+
+$checkStmt->close();
+
+
+
+$dashboardPage =
+    ($role === "owner")
+        ? "owner-dashboard.php"
+        : "employee-dashboard.php";
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Product Added - Smart Inventory</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product Added | Smart Inventory</title>
 
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: #f8fafc;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
 
-        body {
-            font-family: Arial, sans-serif;
-            background: #f5f3fa;
-            min-height: 100vh;
-        }
+.card {
+    background: white;
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    text-align: center;
+    max-width: 450px;
+    width: 90%;
+}
 
-        .navbar {
-            background: #6c2bd9;
-            padding: 18px 40px;
-            color: white;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+h1 {
+    color: #16a34a;
+    margin-bottom: 10px;
+}
 
-        .navbar h2 {
-            font-size: 22px;
-        }
+p {
+    color: #475569;
+    margin-bottom: 25px;
+}
 
-        .navbar a {
-            color: white;
-            text-decoration: none;
-            font-weight: bold;
-        }
+a {
+    display: inline-block;
+    text-decoration: none;
+    background: #2563eb;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    margin: 5px;
+}
 
-        .success-container {
-            min-height: calc(100vh - 70px);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 30px;
-        }
-
-        .success-card {
-            background: white;
-            width: 100%;
-            max-width: 500px;
-            padding: 40px;
-            border-radius: 15px;
-            text-align: center;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
-        }
-
-        .success-icon {
-            font-size: 55px;
-            margin-bottom: 15px;
-        }
-
-        .success-card h1 {
-            color: #333;
-            margin-bottom: 10px;
-        }
-
-        .success-card p {
-            color: #666;
-            margin-bottom: 25px;
-        }
-
-        .product-name {
-            color: #6c2bd9;
-            font-weight: bold;
-        }
-
-        .buttons {
-            display: flex;
-            justify-content: center;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            padding: 12px 20px;
-            border-radius: 7px;
-            text-decoration: none;
-            font-weight: bold;
-        }
-
-        .btn-primary {
-            background: #6c2bd9;
-            color: white;
-        }
-
-        .btn-secondary {
-            border: 1px solid #6c2bd9;
-            color: #6c2bd9;
-            background: white;
-        }
-
-        .error {
-            color: #d32f2f;
-        }
-    </style>
+a:hover {
+    background: #1d4ed8;
+}
+</style>
 </head>
 
 <body>
 
-    <nav class="navbar">
-        <h2>Smart Inventory</h2>
-        <a href="dashboard.php">Dashboard</a>
-    </nav>
+<div class="card">
 
-    <div class="success-container">
+    <h1>✓ Product Added</h1>
 
-        <div class="success-card">
+    <p>
+        The product has been added to your shop's shared inventory.
+    </p>
 
-            <?php if ($success): ?>
+    <a href="inventory.php">View Inventory</a>
 
-                <div class="success-icon">✅</div>
+    <a href="<?php echo $dashboardPage; ?>">Dashboard</a>
 
-                <h1>Product Added Successfully!</h1>
-
-                <p>
-                    <span class="product-name">
-                        <?php echo htmlspecialchars($productName); ?>
-                    </span>
-                    has been added to your inventory.
-                </p>
-
-                <div class="buttons">
-                    <a href="add-product.php" class="btn btn-primary">
-                        Add Another Product
-                    </a>
-
-                    <a href="inventory.php" class="btn btn-secondary">
-                        View Inventory
-                    </a>
-
-                    <a href="dashboard.php" class="btn btn-secondary">
-                        Dashboard
-                    </a>
-                </div>
-
-            <?php else: ?>
-
-                <div class="success-icon">❌</div>
-
-                <h1>Unable to Add Product</h1>
-
-                <p class="error">
-                    Something went wrong. Please try again.
-                </p>
-
-                <div class="buttons">
-                    <a href="add-product.php" class="btn btn-primary">
-                        Try Again
-                    </a>
-
-                    <a href="dashboard.php" class="btn btn-secondary">
-                        Dashboard
-                    </a>
-                </div>
-
-            <?php endif; ?>
-
-        </div>
-
-    </div>
+</div>
 
 </body>
 </html>

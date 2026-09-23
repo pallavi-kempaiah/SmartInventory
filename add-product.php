@@ -7,9 +7,53 @@ if (!isset($_SESSION["user_id"])) {
     exit;
 }
 
-$userId = $_SESSION["user_id"];
+require_once "db.php";
+
+$userId = (int) $_SESSION["user_id"];
+
+$stmt = $conn->prepare(
+    "SELECT role, shop_id, account_status
+     FROM users
+     WHERE id = ?
+     LIMIT 1"
+);
+
+$stmt->bind_param("i", $userId);
+$stmt->execute();
+
+$result = $stmt->get_result();
+
+if ($result->num_rows !== 1) {
+    $stmt->close();
+    $conn->close();
+    session_unset();
+    session_destroy();
+    header("Location: login.html");
+    exit;
+}
+
+$user = $result->fetch_assoc();
+$stmt->close();
+
+if (
+    !in_array($user["role"], ["owner", "employee"], true) ||
+    $user["account_status"] !== "approved" ||
+    empty($user["shop_id"])
+) {
+    $conn->close();
+    header("Location: dashboard.php");
+    exit;
+}
+
+$dashboardPage =
+    $user["role"] === "owner"
+        ? "owner-dashboard.php"
+        : "employee-dashboard.php";
+
+$conn->close();
 
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">
@@ -32,10 +76,10 @@ $userId = $_SESSION["user_id"];
         </div>
 
         <div class="nav-links">
-            <a href="dashboard.php">Dashboard</a>
-            <a href="add-product.php">Add Product</a>
-            <a href="#">Inventory</a>
-            <a href="logout.php">Logout</a>
+            <a href="<?php echo $dashboardPage; ?>">Dashboard</a>
+            <a href="inventory.php">Inventory</a>
+<a href="add-product.php">Add Product</a>
+<a href="logout.php">Logout</a>
         </div>
 
     </nav>

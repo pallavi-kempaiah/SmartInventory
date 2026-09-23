@@ -9,18 +9,79 @@ if (!isset($_SESSION["user_id"])) {
     exit;
 }
 
-$userId = $_SESSION["user_id"];
+$userId = (int)$_SESSION["user_id"];
 
 if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     header("Location: ocr-stock-in.php");
     exit;
 }
 
+
+/*
+ * ============================================================
+ * GET CURRENT USER + SHOP
+ * ============================================================
+ */
+
+$userStmt = $conn->prepare(
+    "SELECT role, shop_id, account_status
+     FROM users
+     WHERE id = ?
+     LIMIT 1"
+);
+
+$userStmt->bind_param("i", $userId);
+$userStmt->execute();
+
+$userResult = $userStmt->get_result();
+
+if ($userResult->num_rows !== 1) {
+    die("User account not found.");
+}
+
+$user = $userResult->fetch_assoc();
+
+$role = $user["role"];
+$shopId = $user["shop_id"];
+$accountStatus = $user["account_status"];
+
+$userStmt->close();
+
+
+/*
+ * Only owner and approved employees can modify inventory.
+ */
+
+if (
+    $role !== "owner" &&
+    !(
+        $role === "employee" &&
+        $accountStatus === "approved"
+    )
+) {
+    die("You do not have permission to modify inventory.");
+}
+
+
+if (empty($shopId)) {
+    die("You are not connected to a shop.");
+}
+
+$shopId = (int)$shopId;
+
+
+/*
+ * ============================================================
+ * GET OCR PRODUCTS
+ * ============================================================
+ */
+
 $products = $_POST["products"] ?? [];
 
-$transactionType = $_SESSION["ocr_transaction_type"] ?? "in";
+$transactionType =
+    $_SESSION["ocr_transaction_type"] ?? "in";
 
-if (!in_array($transactionType, ["in", "out"])) {
+if (!in_array($transactionType, ["in", "out"], true)) {
     $transactionType = "in";
 }
 
@@ -28,23 +89,41 @@ if (empty($products)) {
     die("No products were submitted.");
 }
 
+
+/*
+ * ============================================================
+ * START DATABASE TRANSACTION
+ * ============================================================
+ */
+
 $conn->begin_transaction();
 
 try {
 
     foreach ($products as $product) {
 
-        $productName = trim($product["product"] ?? "");
+        $productName =
+            trim($product["product"] ?? "");
 
-        $category = trim($product["category"] ?? "");
+        $category =
+            trim($product["category"] ?? "");
 
-        $quantity = (int)($product["quantity"] ?? 0);
+        $quantity =
+            (int)($product["quantity"] ?? 0);
 
-        $price = (float)($product["price"] ?? 0);
+        $price =
+            (float)($product["price"] ?? 0);
 
-        $purchaseDate = $product["purchase_date"] ?? "";
+        $purchaseDate =
+            trim($product["purchase_date"] ?? "");
 
-        $expiryDate = $product["expiry_date"] ?? "";
+        $expiryDate =
+            trim($product["expiry_date"] ?? "");
+
+
+        /*
+         * Ignore invalid OCR rows.
+         */
 
         if ($productName === "") {
             continue;
@@ -56,78 +135,104 @@ try {
 
 
         /*
+         * ====================================================
          * STOCK OUT
+         * ====================================================
          */
 
         if ($transactionType === "out") {
 
+            /*
+             * Find product in SHOP inventory.
+             *
+             * IMPORTANT:
+             * Do NOT use user_id here.
+             */
+
             $checkStmt = $conn->prepare(
                 "SELECT id, quantity
                  FROM products
-                 WHERE user_id = ?
-                 AND product_name = ?
+                 WHERE shop_id = ?
+                   AND LOWER(TRIM(product_name))
+                       = LOWER(TRIM(?))
                  LIMIT 1"
             );
 
             $checkStmt->bind_param(
                 "is",
-                $userId,
+                $shopId,
                 $productName
             );
 
             $checkStmt->execute();
 
-            $result = $checkStmt->get_result();
+            $result =
+                $checkStmt->get_result();
+
 
             if ($result->num_rows !== 1) {
 
                 throw new Exception(
-                    "Product not found in inventory: " .
+                    "Product not found in shop inventory: " .
                     $productName
                 );
-
             }
 
-            $existingProduct = $result->fetch_assoc();
 
-            $productId = $existingProduct["id"];
+            $existingProduct =
+                $result->fetch_assoc();
 
-            $currentStock = (int)$existingProduct["quantity"];
+            $productId =
+                (int)$existingProduct["id"];
 
+            $currentStock =
+                (int)$existingProduct["quantity"];
+
+
+            /*
+             * Prevent stock from becoming negative.
+             */
 
             if ($quantity > $currentStock) {
 
                 throw new Exception(
                     "Not enough stock for: " .
-                    $productName
+                    $productName .
+                    ". Available stock: " .
+                    $currentStock
                 );
-
             }
 
 
             /*
-             * Deduct inventory
+             * Deduct shared shop inventory.
              */
 
             $updateStmt = $conn->prepare(
                 "UPDATE products
                  SET quantity = quantity - ?
                  WHERE id = ?
-                 AND user_id = ?"
+                   AND shop_id = ?"
             );
 
             $updateStmt->bind_param(
                 "iii",
                 $quantity,
                 $productId,
-                $userId
+                $shopId
             );
 
-            $updateStmt->execute();
+            if (!$updateStmt->execute()) {
+                throw new Exception(
+                    "Unable to update inventory for " .
+                    $productName
+                );
+            }
 
 
             /*
-             * Record sale
+             * Record the person who performed
+             * the stock-out.
              */
 
             $saleDate = date("Y-m-d");
@@ -151,13 +256,19 @@ try {
                 $saleDate
             );
 
-            $saleStmt->execute();
-
+            if (!$saleStmt->execute()) {
+                throw new Exception(
+                    "Unable to record sale for " .
+                    $productName
+                );
+            }
         }
 
 
         /*
+         * ====================================================
          * STOCK IN
+         * ====================================================
          */
 
         else {
@@ -170,81 +281,106 @@ try {
                 continue;
             }
 
+            if ($purchaseDate === "") {
+                $purchaseDate = date("Y-m-d");
+            }
+
             if ($expiryDate === "") {
                 $expiryDate = null;
             }
 
 
             /*
-             * Check existing product
+             * Find existing product in SHOP inventory.
              */
 
             $checkStmt = $conn->prepare(
                 "SELECT id
                  FROM products
-                 WHERE user_id = ?
-                 AND product_name = ?
+                 WHERE shop_id = ?
+                   AND LOWER(TRIM(product_name))
+                       = LOWER(TRIM(?))
                  LIMIT 1"
             );
 
             $checkStmt->bind_param(
                 "is",
-                $userId,
+                $shopId,
                 $productName
             );
 
             $checkStmt->execute();
 
-            $result = $checkStmt->get_result();
+            $result =
+                $checkStmt->get_result();
 
+
+            /*
+             * Product already exists.
+             */
 
             if ($result->num_rows === 1) {
 
-                $existingProduct = $result->fetch_assoc();
+                $existingProduct =
+                    $result->fetch_assoc();
 
-                $productId = $existingProduct["id"];
+                $productId =
+                    (int)$existingProduct["id"];
 
 
                 /*
-                 * Increase stock
+                 * Increase shared shop stock.
                  */
 
                 $updateStmt = $conn->prepare(
                     "UPDATE products
                      SET quantity = quantity + ?,
+                         user_id = ?,
                          price = ?,
                          category = ?,
                          purchase_date = ?,
                          expiry_date = ?
                      WHERE id = ?
-                     AND user_id = ?"
+                       AND shop_id = ?"
                 );
 
                 $updateStmt->bind_param(
-                    "idsssii",
+                    "iidsssii",
                     $quantity,
+                    $userId,
                     $price,
                     $category,
                     $purchaseDate,
                     $expiryDate,
                     $productId,
-                    $userId
+                    $shopId
                 );
 
-                $updateStmt->execute();
-
+                if (!$updateStmt->execute()) {
+                    throw new Exception(
+                        "Unable to update inventory for " .
+                        $productName
+                    );
+                }
             }
+
+
+            /*
+             * Product does not exist.
+             */
 
             else {
 
                 /*
-                 * Create new product
+                 * IMPORTANT:
+                 * shop_id is now stored.
                  */
 
                 $insertStmt = $conn->prepare(
                     "INSERT INTO products
                     (
                         user_id,
+                        shop_id,
                         product_name,
                         category,
                         quantity,
@@ -252,12 +388,13 @@ try {
                         purchase_date,
                         expiry_date
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?)"
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
                 );
 
                 $insertStmt->bind_param(
-                    "issidss",
+                    "iissidss",
                     $userId,
+                    $shopId,
                     $productName,
                     $category,
                     $quantity,
@@ -266,33 +403,50 @@ try {
                     $expiryDate
                 );
 
-                $insertStmt->execute();
-
+                if (!$insertStmt->execute()) {
+                    throw new Exception(
+                        "Unable to add product " .
+                        $productName .
+                        " to inventory."
+                    );
+                }
             }
-
         }
-
     }
 
 
+    /*
+     * ========================================================
+     * EVERYTHING SUCCESSFUL
+     * ========================================================
+     */
+
     $conn->commit();
+
+
+    /*
+     * Clear OCR session data.
+     */
 
     unset($_SESSION["ocr_data"]);
     unset($_SESSION["ocr_transaction_type"]);
 
 
     /*
-     * Redirect based on transaction type
+     * Redirect.
      */
 
     if ($transactionType === "out") {
 
-        header("Location: sales-history.php?ocr=success");
+        header(
+            "Location: sales-history.php?ocr=success"
+        );
 
     } else {
 
-        header("Location: inventory.php?ocr=success");
-
+        header(
+            "Location: inventory.php?ocr=success"
+        );
     }
 
     exit;
@@ -306,7 +460,6 @@ try {
         "Unable to process receipt: " .
         htmlspecialchars($e->getMessage())
     );
-
 }
 
 ?>

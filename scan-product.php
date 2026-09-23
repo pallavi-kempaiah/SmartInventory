@@ -46,6 +46,7 @@ if (!isset($_SESSION["user_id"])) {
     margin-bottom: 25px;
 }
 
+
 /* Transaction selection */
 
 .mode-section {
@@ -92,6 +93,7 @@ if (!isset($_SESSION["user_id"])) {
     color: #666;
 }
 
+
 /* Upload */
 
 .upload-box {
@@ -122,6 +124,8 @@ if (!isset($_SESSION["user_id"])) {
     border-radius: 7px;
     cursor: pointer;
     font-weight: bold;
+    border: none;
+    font-size: 15px;
 }
 
 .option-btn:hover {
@@ -162,6 +166,121 @@ if (!isset($_SESSION["user_id"])) {
     font-weight: bold;
 }
 
+
+/* ============================================================
+   CAMERA MODAL
+   ============================================================ */
+
+.camera-modal {
+    display: none;
+
+    position: fixed;
+    z-index: 9999;
+
+    left: 0;
+    top: 0;
+
+    width: 100%;
+    height: 100%;
+
+    background: rgba(0,0,0,0.85);
+
+    align-items: center;
+    justify-content: center;
+
+    padding: 20px;
+}
+
+.camera-box {
+
+    width: 100%;
+    max-width: 650px;
+
+    background: white;
+
+    border-radius: 15px;
+
+    padding: 20px;
+
+    text-align: center;
+}
+
+.camera-box h2 {
+    margin-bottom: 15px;
+}
+
+#cameraVideo {
+
+    width: 100%;
+
+    max-height: 60vh;
+
+    object-fit: cover;
+
+    background: black;
+
+    border-radius: 10px;
+}
+
+.camera-controls {
+
+    display: flex;
+
+    gap: 10px;
+
+    justify-content: center;
+
+    margin-top: 15px;
+
+    flex-wrap: wrap;
+}
+
+.camera-controls button {
+
+    border: none;
+
+    padding: 12px 20px;
+
+    border-radius: 8px;
+
+    font-size: 15px;
+
+    font-weight: bold;
+
+    cursor: pointer;
+}
+
+.capture-btn {
+
+    background: #16a34a;
+
+    color: white;
+}
+
+.close-camera-btn {
+
+    background: #dc2626;
+
+    color: white;
+}
+
+.camera-status {
+
+    margin-top: 12px;
+
+    color: #666;
+
+    font-size: 14px;
+}
+
+
+/* Hidden canvas */
+
+#captureCanvas {
+    display: none;
+}
+
+
 @media (max-width: 600px) {
 
     .scan-container {
@@ -184,7 +303,13 @@ if (!isset($_SESSION["user_id"])) {
         box-sizing: border-box;
     }
 
+    .camera-box {
+        padding: 15px;
+    }
+
 }
+
+
 nav {
     display: flex;
     gap: 22px;
@@ -200,12 +325,13 @@ nav a:hover {
     text-decoration: underline;
 }
 
-
 </style>
 
 </head>
 
+
 <body>
+
 
 <header class="navbar">
 
@@ -227,6 +353,7 @@ Smart Inventory
 </header>
 
 
+
 <div class="scan-container">
 
 <a href="dashboard.php" class="back-btn">
@@ -244,6 +371,7 @@ an existing image from your device.
 </p>
 
 
+
 <form
     action="process-product-image.php"
     method="post"
@@ -252,7 +380,9 @@ an existing image from your device.
 >
 
 
-<!-- Stock In / Stock Out -->
+<!-- ============================================================
+     STOCK IN / STOCK OUT
+     ============================================================ -->
 
 <div class="mode-section">
 
@@ -299,7 +429,10 @@ Remove product from inventory
 </div>
 
 
-<!-- Product image -->
+
+<!-- ============================================================
+     PRODUCT IMAGE
+     ============================================================ -->
 
 <div class="upload-box">
 
@@ -308,23 +441,19 @@ Remove product from inventory
 
 <div class="scan-options">
 
-<!-- Camera -->
 
-<label class="option-btn">
+<!-- CAMERA BUTTON -->
 
-📷 Take Photo
-
-<input
-    type="file"
-    id="cameraInput"
-    accept="image/*"
-    capture="environment"
+<button
+    type="button"
+    class="option-btn"
+    id="takePhotoBtn"
 >
+📷 Take Photo
+</button>
 
-</label>
 
-
-<!-- Gallery -->
+<!-- GALLERY -->
 
 <label class="option-btn">
 
@@ -341,16 +470,20 @@ Remove product from inventory
 </div>
 
 
-<div class="selected-file" id="selectedFile">
-
+<div
+    class="selected-file"
+    id="selectedFile"
+>
 No image selected
-
 </div>
 
 </div>
 
 
-<!-- Actual file submitted to PHP -->
+
+<!-- ============================================================
+     ACTUAL FILE SUBMITTED TO PHP
+     ============================================================ -->
 
 <input
     type="file"
@@ -361,11 +494,13 @@ No image selected
 >
 
 
-<button type="submit" class="scan-btn">
-
+<button
+    type="submit"
+    class="scan-btn"
+>
 🤖 Recognize Product
-
 </button>
+
 
 </form>
 
@@ -374,46 +509,449 @@ No image selected
 </div>
 
 
+
+<!-- ============================================================
+     CAMERA MODAL
+     ============================================================ -->
+
+<div
+    class="camera-modal"
+    id="cameraModal"
+>
+
+<div class="camera-box">
+
+<h2>📷 Take Product Photo</h2>
+
+
+<video
+    id="cameraVideo"
+    autoplay
+    playsinline
+></video>
+
+
+<canvas
+    id="captureCanvas"
+></canvas>
+
+
+<div class="camera-controls">
+
+<button
+    type="button"
+    class="capture-btn"
+    id="captureBtn"
+>
+📸 Capture Photo
+</button>
+
+
+<button
+    type="button"
+    class="close-camera-btn"
+    id="closeCameraBtn"
+>
+✕ Close Camera
+</button>
+
+</div>
+
+
+<div
+    class="camera-status"
+    id="cameraStatus"
+>
+Allow camera access when Chrome asks.
+</div>
+
+</div>
+
+</div>
+
+
+
 <script>
 
-const cameraInput = document.getElementById("cameraInput");
-const galleryInput = document.getElementById("galleryInput");
-const finalInput = document.getElementById("finalInput");
-const selectedFile = document.getElementById("selectedFile");
+
+/* ============================================================
+   ELEMENTS
+   ============================================================ */
+
+const takePhotoBtn =
+    document.getElementById("takePhotoBtn");
+
+const galleryInput =
+    document.getElementById("galleryInput");
+
+const finalInput =
+    document.getElementById("finalInput");
+
+const selectedFile =
+    document.getElementById("selectedFile");
+
+const cameraModal =
+    document.getElementById("cameraModal");
+
+const cameraVideo =
+    document.getElementById("cameraVideo");
+
+const captureCanvas =
+    document.getElementById("captureCanvas");
+
+const captureBtn =
+    document.getElementById("captureBtn");
+
+const closeCameraBtn =
+    document.getElementById("closeCameraBtn");
+
+const cameraStatus =
+    document.getElementById("cameraStatus");
 
 
-function selectImage(input) {
+let cameraStream = null;
 
-    if (input.files.length > 0) {
 
-        const file = input.files[0];
 
-        const dataTransfer = new DataTransfer();
+/* ============================================================
+   SELECT IMAGE
+   ============================================================ */
 
-        dataTransfer.items.add(file);
+function selectImage(file) {
 
-        finalInput.files = dataTransfer.files;
-
-        selectedFile.textContent =
-            "Selected: " + file.name;
-
+    if (!file) {
+        return;
     }
 
+
+    const dataTransfer =
+        new DataTransfer();
+
+    dataTransfer.items.add(file);
+
+    finalInput.files =
+        dataTransfer.files;
+
+
+    selectedFile.textContent =
+        "Selected: " + file.name;
 }
 
 
-cameraInput.addEventListener("change", function () {
 
-    selectImage(cameraInput);
+/* ============================================================
+   GALLERY
+   ============================================================ */
 
-});
+galleryInput.addEventListener(
+    "change",
+    function () {
+
+        if (
+            galleryInput.files &&
+            galleryInput.files.length > 0
+        ) {
+
+            const file =
+                galleryInput.files[0];
+
+            selectImage(file);
+        }
+
+    }
+);
 
 
-galleryInput.addEventListener("change", function () {
 
-    selectImage(galleryInput);
+/* ============================================================
+   OPEN CAMERA
+   ============================================================ */
 
-});
+takePhotoBtn.addEventListener(
+    "click",
+    async function () {
+
+        cameraModal.style.display =
+            "flex";
+
+        cameraStatus.textContent =
+            "Starting camera...";
+
+
+        try {
+
+            /*
+             * Request webcam access.
+             */
+
+            cameraStream =
+                await navigator.mediaDevices.getUserMedia({
+
+                    video: {
+                        facingMode: {
+                            ideal: "environment"
+                        },
+
+                        width: {
+                            ideal: 1280
+                        },
+
+                        height: {
+                            ideal: 720
+                        }
+                    },
+
+                    audio: false
+
+                });
+
+
+            cameraVideo.srcObject =
+                cameraStream;
+
+
+            cameraStatus.textContent =
+                "Camera ready. Position the product and capture the photo.";
+
+        }
+
+        catch (error) {
+
+            console.error(
+                "Camera error:",
+                error
+            );
+
+
+            cameraStatus.textContent =
+                "Unable to access camera. Please allow camera permission in Chrome.";
+
+
+            alert(
+                "Camera access was blocked or unavailable.\n\n" +
+                "Please allow camera permission in Chrome and try again."
+            );
+
+        }
+
+    }
+);
+
+
+
+/* ============================================================
+   CAPTURE PHOTO
+   ============================================================ */
+
+captureBtn.addEventListener(
+    "click",
+    function () {
+
+        if (!cameraStream) {
+
+            alert(
+                "Camera is not active."
+            );
+
+            return;
+        }
+
+
+        /*
+         * Use actual camera resolution.
+         */
+
+        const width =
+            cameraVideo.videoWidth;
+
+        const height =
+            cameraVideo.videoHeight;
+
+
+        if (!width || !height) {
+
+            alert(
+                "Camera is not ready yet. Please wait a moment."
+            );
+
+            return;
+        }
+
+
+        captureCanvas.width =
+            width;
+
+        captureCanvas.height =
+            height;
+
+
+        const context =
+            captureCanvas.getContext("2d");
+
+
+        /*
+         * Draw camera frame to canvas.
+         */
+
+        context.drawImage(
+            cameraVideo,
+            0,
+            0,
+            width,
+            height
+        );
+
+
+        /*
+         * Convert canvas to image.
+         */
+
+        captureCanvas.toBlob(
+            function (blob) {
+
+                if (!blob) {
+
+                    alert(
+                        "Unable to capture photo."
+                    );
+
+                    return;
+                }
+
+
+                const file =
+                    new File(
+                        [blob],
+                        "camera_product_" +
+                        Date.now() +
+                        ".jpg",
+                        {
+                            type: "image/jpeg"
+                        }
+                    );
+
+
+                /*
+                 * Put captured image into
+                 * the existing form input.
+                 */
+
+                selectImage(file);
+
+
+                /*
+                 * Close camera.
+                 */
+
+                stopCamera();
+
+
+                cameraModal.style.display =
+                    "none";
+
+
+                /*
+                 * Show success.
+                 */
+
+                selectedFile.textContent =
+                    "📷 Captured: " +
+                    file.name;
+
+            },
+
+            "image/jpeg",
+
+            0.92
+
+        );
+
+    }
+);
+
+
+
+/* ============================================================
+   STOP CAMERA
+   ============================================================ */
+
+function stopCamera() {
+
+    if (cameraStream) {
+
+        cameraStream
+            .getTracks()
+            .forEach(
+                function (track) {
+                    track.stop();
+                }
+            );
+
+        cameraStream = null;
+    }
+
+
+    cameraVideo.srcObject =
+        null;
+}
+
+
+
+/* ============================================================
+   CLOSE CAMERA
+   ============================================================ */
+
+closeCameraBtn.addEventListener(
+    "click",
+    function () {
+
+        stopCamera();
+
+        cameraModal.style.display =
+            "none";
+
+    }
+);
+
+
+
+/* ============================================================
+   CLOSE CAMERA WHEN CLICKING OUTSIDE
+   ============================================================ */
+
+cameraModal.addEventListener(
+    "click",
+    function (event) {
+
+        if (
+            event.target ===
+            cameraModal
+        ) {
+
+            stopCamera();
+
+            cameraModal.style.display =
+                "none";
+        }
+
+    }
+);
+
+
+
+/* ============================================================
+   STOP CAMERA WHEN LEAVING PAGE
+   ============================================================ */
+
+window.addEventListener(
+    "beforeunload",
+    function () {
+
+        stopCamera();
+
+    }
+);
+
 
 </script>
 

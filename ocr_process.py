@@ -64,6 +64,197 @@ ignored_words = [
 
 
 # ---------------------------------------
+# AI-assisted category prediction
+# ---------------------------------------
+
+CATEGORY_KEYWORDS = {
+
+    "Food": [
+        "bread",
+        "bun",
+        "biscuit",
+        "cookie",
+        "cake",
+        "pastry",
+        "croissant",
+        "rusk",
+        "toast",
+        "rice",
+        "wheat",
+        "flour",
+        "sugar",
+        "salt",
+        "oil",
+        "dal",
+        "lentil",
+        "pulse",
+        "spice",
+        "masala",
+        "noodle",
+        "pasta",
+        "snack",
+        "chips",
+        "food"
+    ],
+
+    "Beverages": [
+        "coffee",
+        "espresso",
+        "tea",
+        "juice",
+        "water",
+        "drink",
+        "beverage",
+        "cola",
+        "soda",
+        "pepsi",
+        "coke",
+        "sprite",
+        "fanta"
+    ],
+
+    "Dairy": [
+        "milk",
+        "cheese",
+        "yogurt",
+        "yoghurt",
+        "butter",
+        "cream",
+        "curd",
+        "paneer"
+    ],
+
+    "Fruits & Vegetables": [
+        "apple",
+        "banana",
+        "orange",
+        "mango",
+        "grape",
+        "fruit",
+        "tomato",
+        "potato",
+        "onion",
+        "carrot",
+        "vegetable",
+        "spinach",
+        "cabbage",
+        "beans"
+    ],
+
+    "Electronics": [
+        "laptop",
+        "computer",
+        "mouse",
+        "keyboard",
+        "monitor",
+        "screen",
+        "printer",
+        "phone",
+        "mobile",
+        "telephone",
+        "remote",
+        "modem",
+        "router",
+        "radio",
+        "speaker",
+        "headphone",
+        "earphone",
+        "microphone",
+        "camera",
+        "television",
+        "tv",
+        "charger",
+        "cable",
+        "usb",
+        "adapter",
+        "battery",
+        "ssd",
+        "hard disk"
+    ],
+
+    "Clothing": [
+        "shirt",
+        "jersey",
+        "jeans",
+        "trouser",
+        "shoe",
+        "sandal",
+        "sock",
+        "coat",
+        "jacket",
+        "dress",
+        "t-shirt"
+    ],
+
+    "Personal Care": [
+        "shampoo",
+        "soap",
+        "lotion",
+        "toothbrush",
+        "toothpaste",
+        "comb",
+        "razor",
+        "cosmetic",
+        "conditioner",
+        "face wash",
+        "deodorant",
+        "sanitary"
+    ],
+
+    "Household": [
+        "detergent",
+        "cleaner",
+        "broom",
+        "mop",
+        "bucket",
+        "brush",
+        "tissue",
+        "napkin",
+        "dishwash",
+        "dish soap"
+    ],
+
+    "Stationery": [
+        "pencil",
+        "pen",
+        "notebook",
+        "book",
+        "eraser",
+        "ruler",
+        "paper",
+        "marker",
+        "stapler",
+        "folder"
+    ]
+}
+
+
+def predict_category(product_name):
+
+    text = product_name.lower()
+
+    scores = {}
+
+    for category, keywords in CATEGORY_KEYWORDS.items():
+
+        score = 0
+
+        for keyword in keywords:
+
+            if keyword in text:
+                score += 1
+
+        scores[category] = score
+
+    best_category = max(scores, key=scores.get)
+
+    if scores[best_category] == 0:
+        return "Other"
+
+    return best_category
+
+
+# ---------------------------------------
 # Find price detections
 # ---------------------------------------
 
@@ -83,6 +274,7 @@ for item in items:
         )
 
         try:
+
             price = float(price_text)
 
             price_items.append({
@@ -106,23 +298,18 @@ for item in items:
     text = item["text"].strip()
     lower = text.lower()
 
-    # Skip currency
     if price_pattern.match(text):
         continue
 
-    # Skip obvious unwanted text
     if any(word in lower for word in ignored_words):
         continue
 
-    # Skip dates
     if re.search(r'\d{4}[-/]\d{1,2}[-/]\d{1,2}', text):
         continue
 
-    # Skip times
     if re.search(r'\b\d{1,2}:\d{2}\b', text):
         continue
 
-    # Need at least some letters
     if len(re.sub(r'[^A-Za-z]', '', text)) < 3:
         continue
 
@@ -142,15 +329,12 @@ for item in text_items:
 
     for price_item in price_items:
 
-        # Price should normally be to the right
         if price_item["x"] <= item["x"]:
             continue
 
-        # Calculate distance
         x_distance = price_item["x"] - item["x"]
         y_distance = abs(price_item["y"] - item["y"])
 
-        # Ignore prices on completely different receipt sections
         if y_distance > 80:
             continue
 
@@ -160,18 +344,19 @@ for item in text_items:
             closest_distance = distance
             closest_price = price_item
 
-
     if closest_price is None:
         continue
 
-
-    # Avoid pairing a product with a very distant price
     if closest_price["x"] - item["x"] > 500:
         continue
 
+    product_name = item["text"]
+
+    category = predict_category(product_name)
 
     products.append({
-        "product": item["text"],
+        "product": product_name,
+        "category": category,
         "quantity": 1,
         "price": closest_price["price"]
     })
